@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+*.pptx
+*.csv
+sabrina/
+RefAtlasRegions/
+size_points*/
+generate_big_file_all_V1_injections.ipynb
+plots*/
+Plots*/
+Old*/
+
