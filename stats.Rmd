@@ -44,40 +44,42 @@ print(emm_counts)
 ```
 
 ```{r plot}
-# Define dodge offsets for each age
+
+# Set up dodge manually
 age_levels <- levels(df_plot$age)
 n_age <- length(age_levels)
-dodge_width <- 0.4  # total vertical space to split among ages
+dodge_width <- 0.4
 
-# Compute numeric positions for the ribbons/needles, reversed order
 df_plot <- df_plot %>%
   group_by(region) %>%
-  mutate(region_num = as.numeric(region),
-         age_idx = as.numeric(age),
-         # Reverse the order by subtracting age_idx from n_age + 1
-         dodge_offset = ((n_age + 1) - age_idx - (n_age - 1)/2) * dodge_width,
-         region_pos = region_num + dodge_offset)
+  mutate(
+    x_num = as.numeric(region),
+    age_idx = as.numeric(age),
+    dodge_offset = (age_idx - (n_age + 1)/2) * dodge_width,
+    x_pos = x_num + dodge_offset
+  )
 
-# Needle half-height
-needle_half_height <- 0.15
+# Needle half-width
+needle_half_width <- 0.1
 
-# Plot
+# Vertical expected counts plot
 ggplot(df_plot) +
-  # Horizontal CI ribbon
-  geom_linerange(aes(xmin = lower.CL, xmax = upper.CL,
-                     y = region_pos, color = age),
-                 size = 8, alpha = 0.3) +
-  # Vertical line for expected count ("needle")
-  geom_segment(aes(x = response, xend = response,
-                   y = region_pos - needle_half_height,
-                   yend = region_pos + needle_half_height,
+  # CI ribbons
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL,
+                     x = x_pos, color = age),
+                 size = 6, alpha = 0.3) +
+  # Needles = point estimates
+  geom_segment(aes(x = x_pos - needle_half_width,
+                   xend = x_pos + needle_half_width,
+                   y = response, yend = response,
                    color = age),
                size = 0.8) +
-  scale_y_continuous(breaks = 1:length(levels(df_plot$region)),
+  scale_x_continuous(breaks = 1:length(levels(df_plot$region)),
                      labels = levels(df_plot$region)) +
-  labs(x = "Expected cell count", y = "Brain region") +
+  labs(y = "Expected count", x = NULL) +
   theme_minimal() +
-  scale_color_manual(values = c("skyblue", "salmon"))
+  scale_color_manual(values = c("skyblue", "salmon")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 ```{r fold}
