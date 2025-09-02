@@ -83,43 +83,41 @@ ggplot(df_plot) +
 ```
 
 ```{r fold}
-
-# Age levels
-age_levels <- levels(df_plot$age)
-
-# Compute fold-change per region
-fold_df <- df_plot %>%
-  pivot_wider(
-    id_cols = region,
-    names_from = age,
-    values_from = c(response, lower.CL, upper.CL),
-    names_glue = "{.value}_{age}"
+fold_df <- contrast(
+  emm,
+  method = "revpairwise",
+  by = "region",
+  type = "response",
+  adjust = "none"
+) %>%
+  summary(infer = TRUE, type = "response") %>%
+  as.data.frame() %>%
+  rename(
+    fold_change = ratio,
+    fold_lower  = lower.CL,
+    fold_upper  = upper.CL
   ) %>%
-  mutate(
-    fold_change = .data[[paste0("response_", age_levels[2])]] /
-                  .data[[paste0("response_", age_levels[1])]],
-    fold_lower  = .data[[paste0("lower.CL_", age_levels[2])]] /
-                  .data[[paste0("lower.CL_", age_levels[1])]],
-    fold_upper  = .data[[paste0("upper.CL_", age_levels[2])]] /
-                  .data[[paste0("upper.CL_", age_levels[1])]]
-  )
+  mutate(x = as.numeric(factor(region)))
 
-# Needle half-width
+# ----------------------------
+# Plot fold-change
+# ----------------------------
 needle_half_width <- 0.1
 
-# Vertical fold-change plot
-ggplot(fold_df, aes(x = region)) +
-  # Ribbon = CI
+ggplot(fold_df, aes(x = x)) +
+  # Ribbon = 95% CI
   geom_linerange(aes(ymin = fold_lower, ymax = fold_upper),
                  size = 6, alpha = 0.3, color = "skyblue") +
-  # Needle = fold-change
-  geom_segment(aes(x = as.numeric(region) - needle_half_width,
-                   xend = as.numeric(region) + needle_half_width,
+  # Needle = point estimate
+  geom_segment(aes(x = x - needle_half_width,
+                   xend = x + needle_half_width,
                    y = fold_change, yend = fold_change),
                size = 0.8, color = "skyblue") +
-  # Reference line at y = 1
+  # Reference line at 1
   geom_hline(yintercept = 1, linetype = "dashed", color = "gray50") +
-  labs(y = "Fold-change (old / young)", x = NULL) +
+  # x-axis labels
+  scale_x_continuous(breaks = fold_df$x, labels = fold_df$region) +
+  labs(y = "Fold-change (p13 / p7)", x = NULL) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
