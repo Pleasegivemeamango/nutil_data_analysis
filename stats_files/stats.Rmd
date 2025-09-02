@@ -24,12 +24,15 @@ library(tidyr)
 
 ```{r read}
 
-v1_df <- read.csv(file = "df_stats_v1_filtered.csv", sep = ";") 
+v1_df <- read.csv(file = "df_stats_v1_filtered_scaled.csv", sep = ";") |>
+  mutate(
+    total_count = count / scaled.count
+  )
 head(v1_df)
 ```
 
 ```{r analysis}
-m <- lmer(log(count) ~ (age * region) + (1|mouse), data=v1_df)
+m <- lmer(log(count) ~ age * region + log(total_count) + (1|mouse), data=v1_df)
 summary(m)
 ```
 
@@ -42,6 +45,10 @@ summary(emm)
 ```
 
 ```{r plot}
+age_levels <- levels(v1_df$age)
+n_age <- length(age_levels)
+dodge_width <- 0.4
+
 emm_df <- emm |>
   as.data.frame() |>  
   group_by(region) |>
@@ -53,14 +60,14 @@ emm_df <- emm |>
   )
 
 # Needle half-width
-needle_half_width <- 0.16
+needle_half_width <- 0.175
 
 # Vertical expected counts plot
 ggplot(emm_df) +
   # CI ribbons
   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL,
                      x = x_pos, color = age),
-                 size = 10, alpha = 0.3) +
+                 size = 15, alpha = 0.3) +
   # Needles = point estimates
   geom_segment(aes(x = x_pos - needle_half_width,
                    xend = x_pos + needle_half_width,
@@ -69,10 +76,20 @@ ggplot(emm_df) +
                size = 0.8) +
   scale_x_continuous(breaks = (1:length(levels(emm_df$region))) + 0.5,
                      labels = levels(emm_df$region)) +
-  labs(y = "Expected count", x = NULL) +
+  labs(title = "Cell Counts", y = "Expected count", x = NULL) +
   theme_minimal() +
   scale_color_manual(values = c("skyblue", "salmon")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r save1}
+ggsave(
+  "count.png",
+  plot = last_plot(),
+  width = 10,
+  height = 8,
+  dpi = 300
+)
 ```
 
 ```{r fold}
@@ -95,8 +112,7 @@ fold_df <- contrast(
 # ----------------------------
 # Plot fold-change
 # ----------------------------
-needle_half_width <- 0.2
-
+needle_half_width <- 0.26
 ggplot(fold_df, aes(x = x)) +
   # Ribbon = 95% CI
   geom_linerange(aes(ymin = fold_lower, ymax = fold_upper),
@@ -110,7 +126,17 @@ ggplot(fold_df, aes(x = x)) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "gray50") +
   # x-axis labels
   scale_x_continuous(breaks = fold_df$x, labels = fold_df$region) +
-  labs(y = "Fold-change (p13 / p7)", x = NULL) +
+  labs(title = "Fold Change", y = "Fold-change (p7-13 / p1-7)", x = NULL) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r save2}
+ggsave(
+  "folds.png",
+  plot = last_plot(),
+  width = 6,
+  height = 8,
+  dpi = 300
+)
 ```
