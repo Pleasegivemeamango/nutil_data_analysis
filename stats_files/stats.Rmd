@@ -76,7 +76,7 @@ ggplot(emm_df) +
                size = 0.8) +
   scale_x_continuous(breaks = (1:length(levels(emm_df$region))) + 0.5,
                      labels = levels(emm_df$region)) +
-  labs(title = "Cell Counts",y = "Expected count", x = NULL) +
+  labs(title = "Cell Counts", y = "Expected count", x = NULL) +
   theme_minimal() +
   scale_color_manual(values = c("skyblue", "salmon")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
