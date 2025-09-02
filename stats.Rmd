@@ -35,23 +35,16 @@ summary(m)
 
 ```{r emmeans}
 # Estimated marginal means on log scale
-emm <- emmeans(m, ~ age * region)
+emm <- emmeans(m, ~ age * region, type = "response")
 
 # Back-transform to counts
-emm_counts <- summary(emm, type = "response")
-
-print(emm_counts)
+summary(emm)
 ```
 
 ```{r plot}
-
-# Set up dodge manually
-age_levels <- levels(df_plot$age)
-n_age <- length(age_levels)
-dodge_width <- 0.4
-
-df_plot <- df_plot %>%
-  group_by(region) %>%
+emm_df <- emm |>
+  as.data.frame() |>  
+  group_by(region) |>
   mutate(
     x_num = as.numeric(region),
     age_idx = as.numeric(age),
@@ -63,7 +56,7 @@ df_plot <- df_plot %>%
 needle_half_width <- 0.1
 
 # Vertical expected counts plot
-ggplot(df_plot) +
+ggplot(emm_df) +
   # CI ribbons
   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL,
                      x = x_pos, color = age),
