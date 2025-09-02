@@ -78,8 +78,13 @@ ggplot(emm_df) +
                      labels = levels(emm_df$region)) +
   labs(title = "Cell Counts", y = "Expected count", x = NULL) +
   theme_minimal() +
-  scale_color_manual(values = c("skyblue", "salmon")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_color_manual(values = c("skyblue", "salmon")) +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 16),
+    axis.text.y = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    plot.title = element_text(size = 20)
+  )
 ```
 
 ```{r save1}
@@ -127,8 +132,13 @@ ggplot(fold_df, aes(x = x)) +
   # x-axis labels
   scale_x_continuous(breaks = fold_df$x, labels = fold_df$region) +
   labs(title = "Fold Change", y = "Fold-change (p7-13 / p1-7)", x = NULL) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_minimal() +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 16),
+    axis.text.y = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    plot.title = element_text(size = 20)
+  )
 ```
 
 ```{r save2}
