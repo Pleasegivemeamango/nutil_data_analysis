@@ -9,36 +9,24 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Cool Stats
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-v1_df <- read.csv(file = "df_stats_v1_filtered.csv", sep = ";") 
-#-----------------------------
-# Libraries
-#-----------------------------
-library(lme4)      # for mixed-effects models
-library(boot)      # for bootstrapping
-
-
-#-----------------------------
-# Suppose 2 age groups, 2 regions (A,B), normalized counts per mouse
-df <- data.frame(
-  mouse = rep(c("m1","m2","m3","m4","m5","m6","m7","m8","m9"), each=2),
-  age   = rep(c("age1","age1","age1","age2","age2","age2","age2","age2","age2"), each=2),
-  region= rep(c("A","B"), 9),
-  count = c(123, 312, 423, 6234, 2346, 1234, 
-                 2345, 654, 2346, 123, 754, 2345,
-                 3745, 544, 1346, 1233, 7514, 3345)
-)
-
-
-head(v1_df)
+```{r deps}
+library(lme4)
+library(boot) 
+library(emmeans)
+library(pbkrtest)
+library(lmerTest)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 ```
 
+```{r read}
+
+v1_df <- read.csv(file = "df_stats_v1_filtered.csv", sep = ";") 
+head(v1_df)
+```
 
 ```{r analysis}
 m <- lmer(log(count) ~ (age * region) + (1|mouse), data=v1_df)
@@ -46,9 +34,6 @@ summary(m)
 ```
 
 ```{r emmeans}
-library(emmeans)
-library(pbkrtest)
-library(lmerTest)
 # Estimated marginal means on log scale
 emm <- emmeans(m, ~ age * region)
 
@@ -58,19 +43,81 @@ emm_counts <- summary(emm, type = "response")
 print(emm_counts)
 ```
 
-```{r bootstrap}
-#-----------------------------
-# Bootstrap function for age effect
-#-----------------------------
-boot_fun <- function(data, indices){
-  d <- data[indices, ]           # resample rows
-  fit <- lmer(log(count) ~ age + (1|mouse) + (1|region), data=d)
-  return(fixef(fit)["ageage2"]) # extract age effect coefficient
-}
+```{r plot}
+# Define dodge offsets for each age
+age_levels <- levels(df_plot$age)
+n_age <- length(age_levels)
+dodge_width <- 0.4  # total vertical space to split among ages
 
-set.seed(123)
-boot_res <- boot(df, boot_fun, R=1000)
+# Compute numeric positions for the ribbons/needles, reversed order
+df_plot <- df_plot %>%
+  group_by(region) %>%
+  mutate(region_num = as.numeric(region),
+         age_idx = as.numeric(age),
+         # Reverse the order by subtracting age_idx from n_age + 1
+         dodge_offset = ((n_age + 1) - age_idx - (n_age - 1)/2) * dodge_width,
+         region_pos = region_num + dodge_offset)
 
-# 95% CI for age effect
-boot.ci(boot_res, type="perc")
+# Needle half-height
+needle_half_height <- 0.15
+
+# Plot
+ggplot(df_plot) +
+  # Horizontal CI ribbon
+  geom_linerange(aes(xmin = lower.CL, xmax = upper.CL,
+                     y = region_pos, color = age),
+                 size = 8, alpha = 0.3) +
+  # Vertical line for expected count ("needle")
+  geom_segment(aes(x = response, xend = response,
+                   y = region_pos - needle_half_height,
+                   yend = region_pos + needle_half_height,
+                   color = age),
+               size = 0.8) +
+  scale_y_continuous(breaks = 1:length(levels(df_plot$region)),
+                     labels = levels(df_plot$region)) +
+  labs(x = "Expected cell count", y = "Brain region") +
+  theme_minimal() +
+  scale_color_manual(values = c("skyblue", "salmon"))
+```
+
+```{r fold}
+
+# Age levels
+age_levels <- levels(df_plot$age)
+
+# Compute fold-change per region
+fold_df <- df_plot %>%
+  pivot_wider(
+    id_cols = region,
+    names_from = age,
+    values_from = c(response, lower.CL, upper.CL),
+    names_glue = "{.value}_{age}"
+  ) %>%
+  mutate(
+    fold_change = .data[[paste0("response_", age_levels[2])]] /
+                  .data[[paste0("response_", age_levels[1])]],
+    fold_lower  = .data[[paste0("lower.CL_", age_levels[2])]] /
+                  .data[[paste0("lower.CL_", age_levels[1])]],
+    fold_upper  = .data[[paste0("upper.CL_", age_levels[2])]] /
+                  .data[[paste0("upper.CL_", age_levels[1])]]
+  )
+
+# Needle half-width
+needle_half_width <- 0.1
+
+# Vertical fold-change plot
+ggplot(fold_df, aes(x = region)) +
+  # Ribbon = CI
+  geom_linerange(aes(ymin = fold_lower, ymax = fold_upper),
+                 size = 6, alpha = 0.3, color = "skyblue") +
+  # Needle = fold-change
+  geom_segment(aes(x = as.numeric(region) - needle_half_width,
+                   xend = as.numeric(region) + needle_half_width,
+                   y = fold_change, yend = fold_change),
+               size = 0.8, color = "skyblue") +
+  # Reference line at y = 1
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray50") +
+  labs(y = "Fold-change (old / young)", x = NULL) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
