@@ -1,0 +1,76 @@
+---
+title: "Presentation Station Indignation"
+author: "Sara Herbst"
+date: "2025-09-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+v1_df <- read.csv(file = "df_stats_v1_filtered.csv", sep = ";") 
+#-----------------------------
+# Libraries
+#-----------------------------
+library(lme4)      # for mixed-effects models
+library(boot)      # for bootstrapping
+
+
+#-----------------------------
+# Suppose 2 age groups, 2 regions (A,B), normalized counts per mouse
+df <- data.frame(
+  mouse = rep(c("m1","m2","m3","m4","m5","m6","m7","m8","m9"), each=2),
+  age   = rep(c("age1","age1","age1","age2","age2","age2","age2","age2","age2"), each=2),
+  region= rep(c("A","B"), 9),
+  count = c(123, 312, 423, 6234, 2346, 1234, 
+                 2345, 654, 2346, 123, 754, 2345,
+                 3745, 544, 1346, 1233, 7514, 3345)
+)
+
+
+head(v1_df)
+```
+
+
+```{r analysis}
+m <- lmer(log(count) ~ (age * region) + (1|mouse), data=v1_df)
+summary(m)
+```
+
+```{r emmeans}
+library(emmeans)
+library(pbkrtest)
+library(lmerTest)
+# Estimated marginal means on log scale
+emm <- emmeans(m, ~ age * region)
+
+# Back-transform to counts
+emm_counts <- summary(emm, type = "response")
+
+print(emm_counts)
+```
+
+```{r bootstrap}
+#-----------------------------
+# Bootstrap function for age effect
+#-----------------------------
+boot_fun <- function(data, indices){
+  d <- data[indices, ]           # resample rows
+  fit <- lmer(log(count) ~ age + (1|mouse) + (1|region), data=d)
+  return(fixef(fit)["ageage2"]) # extract age effect coefficient
+}
+
+set.seed(123)
+boot_res <- boot(df, boot_fun, R=1000)
+
+# 95% CI for age effect
+boot.ci(boot_res, type="perc")
+```
